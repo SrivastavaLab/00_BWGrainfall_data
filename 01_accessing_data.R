@@ -18,6 +18,11 @@ library(purrr)
 library(lubridate)
 library(assertr)
 
+
+# merge in some traits ----------------------------------------------------
+
+source("traitmerge.R")
+
 # obtain data -----------------------------------------
 
 # site.info
@@ -99,12 +104,45 @@ bwg_names %>%
   filter(!(predation %in% c("predator","prey", NA_character_))) %>% 
   {stopifnot(nrow(.) == 0)}
 
+# filter, taking only those species which we have in the drought experiment.
 
-### merge with taxonomy and "canonical" traits
-invert_traits <- final_inverts %>% 
-  rename(bwg_name = species) %>% 
-  left_join(bwg_names, by = "bwg_name")
+# is everyone here? are we missing anyone? 
+# first correct some spelling inconsistencies in Cardoso:
+final_inverts_corrected <- final_inverts %>% 
+  mutate(species = if_else(species == "Diptera.512.", "Diptera.512", species))
 
+final_inverts_corrected %>% anti_join(bwg_names, by = c("species" = "bwg_name"))
+# yes, here are two species which will not find any match in the trait table!
+
+# now we do the opposite, filtering the full species list according to the drought experiment:
+
+bwg_names_rainfallspp <- bwg_names %>% 
+  semi_join(final_inverts_corrected, by = c("bwg_name" = "species"))
+
+ # Now to access the lowest taxonomic traits, and merge with the google sheet according to these.
+
+canonical_traits <- bwg_names_rainfallspp %>%
+  select_("species_id","bwg_name", "domain", "kingdom", "phylum", "subphylum",
+          "class", "subclass", "ord", "subord", "family", "subfamily",
+          "tribe", "genus", "species", "subspecies", "functional_group",
+          "predation", "realm", "micro_macro", "barcode")
+
+taxonomy_cols <-  make_taxonomy_cols(bwg_names_rainfallspp)
+
+lowest_taxonomic <- get_lowest_taxonomic(taxonomy_cols)
+
+
+taxon_lowest_names <- lowest_name_and_subspecies(taxonomy_cols, lowest_taxonomic)
+
+library(googlesheets)
+trait_spreadsheet <- get_trait_spreadsheet()
+
+traits_from_tax <- merge_trait_by_taxonomy(trait_spreadsheet, taxon_lowest_names)
+
+traits <- left_join(canonical_traits, traits_from_tax, by = I("species_id"))
+
+traits %>%
+  write_csv("Data/BWG_final_invertebrate_traits.csv")
 
 # Hydrology -- removing leaky leaves ---------------------------------------------------
 
@@ -251,7 +289,6 @@ decompositon <- get_decomp(bromeliad_physical = bromeliad_physical)
 # as yet unused variables -------------------------------------------------
 
 # rainfall
-# ibutton metrics
 # initial_inverts
 
 
@@ -260,9 +297,4 @@ decompositon <- get_decomp(bromeliad_physical = bromeliad_physical)
 bromeliad_variables <- bromeliad_physical %>%
   left_join(decompositon, by = c("site_brom.id", "trt.name")) %>% 
   verify(nrow(.) == 210)
-
-
-# write data ------------------------------------------
-
-write_csv(invert_traits, "Data/invert_data.csv")
 

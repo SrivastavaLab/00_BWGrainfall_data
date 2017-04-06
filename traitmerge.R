@@ -2,7 +2,7 @@
 #' notes on megin traits in to the dat
 
 make_taxonomy_cols <- function(.trts_all_filtered) {
-  trts_taxonomy_cols <- trts_parsed_cols %>%
+  trts_taxonomy_cols <- .trts_all_filtered %>%
     select_("species_id", "domain", "kingdom", "phylum", "subphylum",
             "class", "subclass", "ord", "subord", "family", "subfamily",
             "tribe", "genus", "species", "subspecies")
@@ -82,12 +82,12 @@ lowest_name_and_subspecies <- function(.taxonomy_cols, .lowest_names) {
   # just these unknown animals!
   # check that the names are acceptable and message: "6516", "6511", "6506"
   
-  mysteries <- .taxonomy_cols %>%
-    anti_join(.lowest_names) %>%
-    assert(in_set(c("6516", "6511", "6506")), species_id)
-  
+  # mysteries <- .taxonomy_cols %>%
+  #   anti_join(.lowest_names) %>%
+  #   assert(in_set(c("6516", "6511", "6506")), species_id)
+  # 
   # if that worked, let us know
-  message("There are only three taxa with no trait information at all. Three Unknown animals")
+  # message("There are only three taxa with no trait information at all. Three Unknown animals")
   
   # we add on subspecies, no matter _what_ is the lowest level of the species --
   # ie even if it is not species. That is because sometimes "subspecies" is
