@@ -4,7 +4,6 @@ rdrop2::drop_auth(cache = FALSE)
 
 #to manually update bwgtools, run this, may need to install dependent packages too
 # devtools::install_github("SrivastavaLab/bwgtools", dependencies = TRUE)
-# 
 # devtools::install_github("Srivastavalab/bwgtools")
 
 # Loading packages ------------------------------------
@@ -55,6 +54,10 @@ bwg_names <- bwgdata::bwg_get("species")
 
 # ibutton data ------------------------------------------------------------
 
+ibuttons %>% 
+  write_csv("Data/BWGrainfall_long_ibuttons.csv")
+
+# summarize ibuttons for combining with bromeliad-level data later
 ibutton_data <- ibuttons %>%
   group_by(site, site_brom.id) %>%
   summarise(mean_max = mean(max.temp, na.rm = TRUE), mean_min = mean(min.temp, na.rm = TRUE),
