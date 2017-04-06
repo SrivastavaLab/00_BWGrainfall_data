@@ -422,8 +422,7 @@ fulldata  <-  bromeliad_variables %>%
   left_join(genus_bio, by = "site_brom.id")%>%
   left_join(brom_hydro, by = "site_brom.id")%>%
   left_join(ibutton_data, by = "site_brom.id") #note ibutton data is 205 rows not 210
-fulldata$site<-as.factor(fulldata$site.x)
-fulldata$trt.name<-as.factor(fulldata$trt.name.x)
+fulldata <- fulldata %>% rename(site = site.x)
 
 #predict a missing colombia maxvol measurement - also changed on rawdata
 maxvolmod<-lm(log(maxvol)~leaf.number, data=subset(fulldata,site=="colombia"))
