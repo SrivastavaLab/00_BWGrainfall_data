@@ -300,7 +300,8 @@ decompositon <- get_decomp(bromeliad_physical = bromeliad_physical)
 # Bromeliads --------------------------------------------------------------
 
 bromeliad_variables <- bromeliad_physical %>%
-  left_join(decompositon, by = c("site_brom.id", "trt.name")) %>% 
+  left_join(decompositon, by = c("site_brom.id", "site", "trt.name")) %>% 
+  left_join(brom_hydro) %>% 
   verify(nrow(.) == 210)
 
 bromeliad_variables %>% 

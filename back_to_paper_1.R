@@ -6,14 +6,15 @@
 #what is necessary and THEN do this work
 # "what is necessary" == everything not Tachet
 
+final_inverts <- read_csv("Data/BWG_final_invertebrates.csv")
+bwg_names <- read_csv("Data/BWG_final_invertebrate_traits.csv")
+
 ## merge with taxonomy and
 #"canonical" traits
 invert_traits <- final_inverts %>% 
   rename(bwg_name = species) %>% 
-  left_join(bwg_names, by = "bwg_name")
-
-# filter out only aquatics
-# filter(realm == "aquatic")
+  left_join(bwg_names, by = "bwg_name") %>% 
+  filter(realm == "aquatic")
 
 
 #summarize functional groups
@@ -160,6 +161,7 @@ genus_bio <- check_rename_summarize_spread(ord_groups, "genus")
 # summarize ibuttons ------------------------------------------------------
 
 # read those ibuttons in
+ibuttons <- read_csv("Data/BWGrainfall_long_ibuttons.csv")
 
 # summarize ibuttons for combining with bromeliad-level data later
 ibutton_data <- ibuttons %>%
@@ -180,7 +182,7 @@ ibutton_data <- ibuttons %>%
 
 # join everything together ------------------------------------------------
 
-
+bromeliad_variables <- read_csv("Data/BWG_bromeliad_variables.csv")
 
 fulldata  <-  bromeliad_variables %>%
   left_join(func_bio, by = "site_brom.id") %>%
@@ -192,7 +194,6 @@ fulldata  <-  bromeliad_variables %>%
   left_join(family_bio, by = "site_brom.id")%>%
   left_join(subfamily_bio, by = "site_brom.id")%>%
   left_join(genus_bio, by = "site_brom.id")%>%
-  left_join(brom_hydro, by = "site_brom.id")%>%
   left_join(ibutton_data, by = "site_brom.id") #note ibutton data is 205 rows not 210
 
 #predict a missing colombia maxvol measurement - also changed on rawdata
