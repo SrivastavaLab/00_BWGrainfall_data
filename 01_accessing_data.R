@@ -51,30 +51,6 @@ final_inverts <- bwgtools::combine_tab(sheetname = "bromeliad.final.inverts")
 ### trait data -- from database
 bwg_names <- bwgdata::bwg_get("species")
 
-
-# ibutton data ------------------------------------------------------------
-
-ibuttons %>% 
-  write_csv("Data/BWGrainfall_long_ibuttons.csv")
-
-# summarize ibuttons for combining with bromeliad-level data later
-ibutton_data <- ibuttons %>%
-  group_by(site, site_brom.id) %>%
-  summarise(mean_max = mean(max.temp, na.rm = TRUE), mean_min = mean(min.temp, na.rm = TRUE),
-            mean_mean = mean(mean.temp, na.rm = TRUE), sd_max = sd(max.temp, na.rm = TRUE),
-            sd_min = sd(min.temp, na.rm = TRUE), sd_mean = sd(mean.temp, na.rm = TRUE),
-            cv_max = 100*(sd_max/mean_max), cv_min = 100*(sd_min/mean_min),
-            cv_mean = 100*(sd_mean/mean_mean)) %>%
-  ungroup %>%
-  gather(variable, observed, 3:11) %>%
-  replace_na(list(observed = "NA")) %>%
-  select(-site) %>%
-  spread(variable, observed, fill = 0) %>%
-  rename(max_temp = mean_max, min_temp = mean_min, mean_temp = mean_mean,
-         sd_max_temp = sd_max, sd_min_temp = sd_min, sd_mean_temp = sd_mean,
-         cv_max_temp = cv_max, cv_min_temp = cv_min, cv_mean_temp = cv_mean)
-
-
 # checking final inverts, merging with bwg_names --------------------------------------------------
 
 # checking for duplicate columns -- there should be 30 sites with 7 unique names
@@ -94,6 +70,13 @@ stopifnot(identical(structure(list(site = c("argentina", "cardoso", "colombia", 
                               row.names = c(NA, -7L),
                               .Names = c("site", "n")),
                     complete_sites))
+
+final_inverts %>% 
+  write_csv("Data/BWG_final_invertebrates.csv")
+
+# bwg_names processing and preparation ------------------------------------
+
+
 
 # that is a list and it causes
 ## pain in subsequent joins. fortunately we don't need it.

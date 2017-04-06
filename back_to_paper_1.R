@@ -1,5 +1,8 @@
 
 # move this part back to paper 1
+
+
+
 # filter out only aquatics
 # filter(realm == "aquatic")
 
@@ -142,6 +145,31 @@ genus_bio <- check_rename_summarize_spread(ord_groups, "genus")
 
 ## merge all the bromeliad-level variables
 ## start with bromeliad.physical because it must be complete!
+
+
+# ibutton data ------------------------------------------------------------
+
+ibuttons %>% 
+  write_csv("Data/BWGrainfall_long_ibuttons.csv")
+
+# summarize ibuttons for combining with bromeliad-level data later
+ibutton_data <- ibuttons %>%
+  group_by(site, site_brom.id) %>%
+  summarise(mean_max = mean(max.temp, na.rm = TRUE), mean_min = mean(min.temp, na.rm = TRUE),
+            mean_mean = mean(mean.temp, na.rm = TRUE), sd_max = sd(max.temp, na.rm = TRUE),
+            sd_min = sd(min.temp, na.rm = TRUE), sd_mean = sd(mean.temp, na.rm = TRUE),
+            cv_max = 100*(sd_max/mean_max), cv_min = 100*(sd_min/mean_min),
+            cv_mean = 100*(sd_mean/mean_mean)) %>%
+  ungroup %>%
+  gather(variable, observed, 3:11) %>%
+  replace_na(list(observed = "NA")) %>%
+  select(-site) %>%
+  spread(variable, observed, fill = 0) %>%
+  rename(max_temp = mean_max, min_temp = mean_min, mean_temp = mean_mean,
+         sd_max_temp = sd_max, sd_min_temp = sd_min, sd_mean_temp = sd_mean,
+         cv_max_temp = cv_max, cv_min_temp = cv_min, cv_mean_temp = cv_mean)
+
+# join everything together ------------------------------------------------
 
 
 
