@@ -56,6 +56,11 @@ final_inverts <- bwgtools::combine_tab(sheetname = "bromeliad.final.inverts")
 ### trait data -- from database
 bwg_names <- bwgdata::bwg_get("species")
 
+# ibutton data ------------------------------------------------------------
+
+ibuttons %>% 
+  write_csv("Data/BWGrainfall_long_ibuttons.csv")
+
 # checking final inverts, merging with bwg_names --------------------------------------------------
 
 # checking for duplicate columns -- there should be 30 sites with 7 unique names
@@ -297,4 +302,7 @@ decompositon <- get_decomp(bromeliad_physical = bromeliad_physical)
 bromeliad_variables <- bromeliad_physical %>%
   left_join(decompositon, by = c("site_brom.id", "trt.name")) %>% 
   verify(nrow(.) == 210)
+
+bromeliad_variables %>% 
+  write_csv("Data/BWG_bromeliad_variables.csv")
 

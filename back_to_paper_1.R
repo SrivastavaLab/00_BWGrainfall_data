@@ -1,7 +1,16 @@
 
 # move this part back to paper 1
 
+#before you can merge the functional groups and summarize with them you have to 
+#get this info from the BWG, then also the traits. Read it in off a file, select
+#what is necessary and THEN do this work
+# "what is necessary" == everything not Tachet
 
+## merge with taxonomy and
+#"canonical" traits
+invert_traits <- final_inverts %>% 
+  rename(bwg_name = species) %>% 
+  left_join(bwg_names, by = "bwg_name")
 
 # filter out only aquatics
 # filter(realm == "aquatic")
@@ -147,10 +156,10 @@ genus_bio <- check_rename_summarize_spread(ord_groups, "genus")
 ## start with bromeliad.physical because it must be complete!
 
 
-# ibutton data ------------------------------------------------------------
 
-ibuttons %>% 
-  write_csv("Data/BWGrainfall_long_ibuttons.csv")
+# summarize ibuttons ------------------------------------------------------
+
+# read those ibuttons in
 
 # summarize ibuttons for combining with bromeliad-level data later
 ibutton_data <- ibuttons %>%
