@@ -17,6 +17,7 @@ library(curl)
 library(purrr)
 library(lubridate)
 library(assertr)
+library(googlesheets)
 
 
 # merge in some traits ----------------------------------------------------
@@ -81,8 +82,12 @@ stopifnot(identical(structure(list(site = c("argentina", "cardoso", "colombia", 
                               .Names = c("site", "n")),
                     complete_sites))
 
-final_inverts %>% 
-  write_csv("Data/BWG_final_invertebrates.csv")
+
+# first, correct this for a little mispeling
+# first correct some spelling inconsistencies in Cardoso:
+final_inverts_corrected <- final_inverts %>% 
+  mutate(species = if_else(species == "Diptera.512.", "Diptera.512", species))
+
 
 # bwg_names processing and preparation ------------------------------------
 
@@ -92,10 +97,7 @@ final_inverts %>%
 ## pain in subsequent joins. fortunately we don't need it.
 ## Dropping it for now; future versions won't create this
 ## problem in the 1st place
-if (inherits(bwg_names$names, "list")) {
-  bwg_names <- bwg_names %>% 
-    select(-names)
-}
+bwg_names <- bwg_names %>% mutate(names = map_chr(names, paste0, collapse = ";"))
 
 # fix the variable classes
 bwg_names <- bwg_names %>% 
@@ -112,19 +114,62 @@ bwg_names %>%
 # filter, taking only those species which we have in the drought experiment.
 
 # is everyone here? are we missing anyone? 
-# first correct some spelling inconsistencies in Cardoso:
-final_inverts_corrected <- final_inverts %>% 
-  mutate(species = if_else(species == "Diptera.512.", "Diptera.512", species))
 
-final_inverts_corrected %>% anti_join(bwg_names, by = c("species" = "bwg_name"))
+final_inverts_corrected %>% anti_join(bwg_names, by = c("species" = "bwg_name")) %>% View
 # yes, here are two species which will not find any match in the trait table!
+# early instar animals
+#  To correct these, we must replace these ad-hoc "species names" with true bwg_name values
+
+# what shall we do with these "early instar" things? 
+# Anopheles.sp....early.instars
+#  There is only one Anopheles on Cardoso, and it is Anopheles bellator. So I will use *it's* species name, which is Diptera.10
+
+
+# Leptagrion.sp....early.instars
+# replace with an actual bwg_name, and move "early instar" to a new logical column
+final_inverts_instar_corrected <- final_inverts_corrected %>% 
+  # identify where we have early instars
+  mutate(early_instar = str_detect(species, "early\\.instars")) %>% 
+  # filter(early_instar)
+  # now replace "species" with the correct bwg_name
+  mutate(species = if_else(species == "Anopheles.sp....early.instars",
+                           true = "Diptera.10",
+                           false = species),
+         species = if_else(species == "Leptagrion.sp....early.instars",
+                           true = "Odonata.13",
+                           false = species))
+
+# show the changes in the dataset: there is now a bwg_name in the "species"
+# column (like normal) and a logical "early_instar" value to preserve that
+# information
+final_inverts_instar_corrected %>% 
+  filter(early_instar)
 
 # now we do the opposite, filtering the full species list according to the drought experiment:
 
 bwg_names_rainfallspp <- bwg_names %>% 
-  semi_join(final_inverts_corrected, by = c("bwg_name" = "species"))
+  semi_join(final_inverts_instar_corrected, by = c("bwg_name" = "species"))
 
  # Now to access the lowest taxonomic traits, and merge with the google sheet according to these.
+
+taxonomy_cols <-  make_taxonomy_cols(bwg_names_rainfallspp)
+
+lowest_taxonomic <- get_lowest_taxonomic(taxonomy_cols)
+
+# there should actually be at least one duplicate no? 
+lowest_taxonomic %>% 
+  filter(taxon_name %>% str_detect("Herm"))
+
+# producing the definitive species-level list of missing names, including
+# subspecies where those are present
+taxon_lowest_names <- lowest_name_and_subspecies(taxonomy_cols, lowest_taxonomic)
+
+# get trait spreadsheet from google docs
+trait_spreadsheet <- get_trait_spreadsheet()
+
+traits_from_tax <- merge_trait_by_taxonomy(trait_spreadsheet, taxon_lowest_names)
+
+# combining traits with database traits
 
 canonical_traits <- bwg_names_rainfallspp %>%
   select_("species_id","bwg_name", "domain", "kingdom", "phylum", "subphylum",
@@ -132,22 +177,55 @@ canonical_traits <- bwg_names_rainfallspp %>%
           "tribe", "genus", "species", "subspecies", "functional_group",
           "predation", "realm", "micro_macro", "barcode")
 
-taxonomy_cols <-  make_taxonomy_cols(bwg_names_rainfallspp)
-
-lowest_taxonomic <- get_lowest_taxonomic(taxonomy_cols)
-
-
-taxon_lowest_names <- lowest_name_and_subspecies(taxonomy_cols, lowest_taxonomic)
-
-library(googlesheets)
-trait_spreadsheet <- get_trait_spreadsheet()
-
-traits_from_tax <- merge_trait_by_taxonomy(trait_spreadsheet, taxon_lowest_names)
-
 traits <- left_join(canonical_traits, traits_from_tax, by = I("species_id"))
 
-traits %>%
+# first check that there are no identical species, or other groups that need to be merged
+
+traits %>% 
+  # there should be no duplicates in this table
+  verify(nrow(.) == nrow(distinct(.))) %>%
+  # there should be no NA names etc
+  assert(not_na, taxon_name, taxon_number) %>% 
   write_csv("Data/BWG_final_invertebrate_traits.csv")
+
+
+# final_inverts processing and writing ------------------------------------
+
+# get bwg names and taxon_name and taxon_number -- how do bwg_names map onto
+# taxonomy! this will tell us how to merge.
+bwg_name_number <- traits %>% 
+  select(bwg_name, taxon_name, taxon_number)
+
+
+
+final_inverts_names <- final_inverts_corrected %>% 
+  left_join(bwg_name_number, by = c("species" = "bwg_name"))
+
+
+
+# ASSUMPTION  species name is the maximum species number!!
+
+mergeable <- c("Sphaeridiinae_adult", "Sphaeridiinae_larva", "Hermetia")
+
+species_that_should_be_merged <- final_inverts_names %>% 
+  filter(taxon_number == max(taxon_number) | taxon_name %in% mergeable)
+
+unknown_if_should_be_merged <- final_inverts_names %>% 
+  # remove the ones that should be merged
+  anti_join(species_that_should_be_merged)
+
+merged_rows <- final_inverts_names %>% 
+  semi_join(species_that_should_be_merged) %>% 
+  nest(species) %>% 
+  mutate(bwg_name = map_chr(data, paste0, collapse = ";"))
+
+# how many were merged??
+merged_rows %>% 
+  filter(map_dbl(data, nrow) > 1)
+
+# None!!
+
+final_inverts_names %>% glimpse
 
 # Hydrology -- removing leaky leaves ---------------------------------------------------
 
@@ -306,4 +384,9 @@ bromeliad_variables <- bromeliad_physical %>%
 
 bromeliad_variables %>% 
   write_csv("Data/BWG_bromeliad_variables.csv")
+
+# sites -------------------------------------------------------------------
+
+site_info %>% 
+  write_csv("Data/site_info.csv")
 
