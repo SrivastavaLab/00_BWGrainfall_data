@@ -184,4 +184,4 @@ fulldata$maxvol[fulldata$site_brom.id=="colombia_29"]<-exp(predict(maxvolmod, da
 
 glimpse(fulldata)
 
-write_csv(fulldata, "Data/wide_functional_group_data.csv")
+write_csv(fulldata, "Data/BWG_wide_functional_groups_ibuttons.csv")
