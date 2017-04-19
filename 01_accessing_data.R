@@ -382,5 +382,5 @@ bromeliad_variables %>%
 # sites -------------------------------------------------------------------
 
 site_info %>% 
-  write_csv("Data/site_info.csv")
+  write_csv("Data/BWG_site_info.csv")
 
