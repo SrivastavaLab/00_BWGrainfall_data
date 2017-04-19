@@ -93,16 +93,13 @@ final_inverts_corrected <- final_inverts %>%
 
 
 
-# that is a list and it causes
-## pain in subsequent joins. fortunately we don't need it.
-## Dropping it for now; future versions won't create this
-## problem in the 1st place
+#that is a list and it causes pain in subsequent joins. a simple solution is to
+#combine all the dupicate names with a semicolon
 bwg_names <- bwg_names %>% mutate(names = map_chr(names, paste0, collapse = ";"))
 
 # fix the variable classes
 bwg_names <- bwg_names %>% 
   mutate_all(funs(parse_guess)) 
-
 
 ## who are these pesky animals who are neither predator, nor prey, nor NA?
 ## (there should be none at all)
@@ -111,10 +108,7 @@ bwg_names %>%
   filter(!(predation %in% c("predator","prey", NA_character_))) %>% 
   {stopifnot(nrow(.) == 0)}
 
-# filter, taking only those species which we have in the drought experiment.
-
-# is everyone here? are we missing anyone? 
-
+# CHECK: is every species in the final_inverts data.frame also present in bwg_names? 
 final_inverts_corrected %>% anti_join(bwg_names, by = c("species" = "bwg_name")) %>% View
 # yes, here are two species which will not find any match in the trait table!
 # early instar animals
