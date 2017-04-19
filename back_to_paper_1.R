@@ -1,6 +1,13 @@
 
 # move this part back to paper 1
 
+
+# reading in data ---------------------------------------------------------
+
+library(bwgtools)
+library(assertr)
+library(tidyverse)
+
 #before you can merge the functional groups and summarize with them you have to 
 #get this info from the BWG, then also the traits. Read it in off a file, select
 #what is necessary and THEN do this work
@@ -19,8 +26,10 @@ invert_traits <- final_inverts %>%
 
 #summarize functional groups
 func_groups <- sum_func_groups(invert_traits,
-                               grps = list(~site, ~site_brom.id,
-                                           ~predation, ~functional_group))
+                               grps = list(~site, 
+                                           ~site_brom.id,
+                                           ~predation,
+                                           ~functional_group))
 
 
 
@@ -42,72 +51,46 @@ func_groups <- func_groups %>%
 ## check a known problem:
 func_groups %>% filter(site_brom.id == "cardoso_DEC25")
 
+#' This table shows that there is a piercer in both predator and prey categories
 
 # Abundance and biomass at functional and trophic levels ------------------------------------------------------------
-
-
-# summarize trophic groups
-trophic_groups <- sum_func_groups(invert_traits,
-                                  grps = list(~site, ~site_brom.id,
-                                              ~predation))
-
 
 # note that func_groups is calculated from invert_traits
 
 #summarize the biomass of each functional group. Produce one row per bromeliad, 
 #which 210 bromeliads. There should be NO missing biomass. If an animal has no
 #functional group, it has "NA_bio"
-func_bio <- func_groups %>%
+func_bio_abd <- func_groups %>%
   ungroup %>%
   ## total_biomass should be present for every bromeliad
-  assert(not_na, total_biomass) %>%
-  select(site_brom.id, functional_group, total_biomass) %>%
-  # assert(not_na, functional_group) %>%
-  group_by(site_brom.id, functional_group) %>%
-  summarise_each(funs(sum)) %>%
-  mutate(functional_group = if_else(is.na(functional_group), paste0("predation_", functional_group), functional_group),
-         functional_group = paste0(functional_group, "_bio")) %>%
-  spread(functional_group, total_biomass, fill = 0) %>% 
+  assert(not_na, total_biomass, total_abundance, total_taxa) %>%
+  select(site_brom.id, predation, functional_group, total_biomass, total_abundance, total_taxa) %>%
+  gather(response, value, starts_with("total")) %>% 
+  unite("pred_func_resp", predation, functional_group, response) %>% 
+  spread(pred_func_resp, value, fill = 0) %>% 
   verify(nrow(.) == 210)
-
-func_abd <- func_groups %>%
-  ungroup %>%
-  ## total_abundance should be present for every bromeliad
-  assert(not_na, total_abundance) %>%
-  ## if it is a piercer, append predation to it
-  mutate(functional_group = if_else(functional_group == "piercer", 
-                                    paste0(predation, "_", functional_group),
-                                    functional_group)) %>% 
-  select(site_brom.id, functional_group, total_abundance) %>%
-  mutate(functional_group = if_else(is.na(functional_group), paste0("predation_", functional_group), functional_group),
-         functional_group = paste0(functional_group, "_abd")) %>%
-  spread(functional_group, total_abundance, fill = 0) %>% 
-  verify(nrow(.) == 210)
-
 
 ## total biomass for each trophic level. if an animal has no known trophic
 ## level, it is "NA_bio"
-trophic_bio <- trophic_groups %>%
-  ungroup %>%
-  ## total_biomass should be present for every bromeliad
-  assert(not_na, total_biomass) %>%
-  select(site_brom.id, predation, total_biomass) %>%
-  mutate(predation = if_else(is.na(predation), paste0("predation_", predation), predation),
-         predation = paste0(predation, "_bio")) %>%
-  spread(predation, total_biomass, fill = 0) %>% 
-  verify(nrow(.) == 210)
-
-#abundance of each trophic level
-trophic_abd <- trophic_groups %>%
-  ungroup %>%
-  ## total_biomass should be present for every bromeliad
-  assert(not_na, total_biomass) %>%
-  select(site_brom.id, predation, total_abundance) %>%
-  mutate(predation = if_else(is.na(predation), paste0("predation_", predation), predation),
-         predation = paste0(predation, "_abd")) %>%
-  spread(predation, total_abundance, fill = 0) %>% 
-  verify(nrow(.) == 210)
-
+trophic_bio <-  func_bio_abd %>% glimpse %>% 
+  mutate(predator_biomass = 
+           predator_engulfer_total_biomass + 
+           predator_piercer_total_biomass,
+         prey_biomass     = 
+           prey_filter.feeder_total_biomass + 
+           prey_gatherer_total_biomass + 
+           prey_piercer_total_biomass + 
+           prey_scraper_total_biomass + 
+           prey_shredder_total_biomass) %>% 
+  mutate(predator_abundance = 
+           predator_engulfer_total_abundance + 
+           predator_piercer_total_abundance,
+         prey_abundance     = 
+           prey_filter.feeder_total_abundance + 
+           prey_gatherer_total_abundance + 
+           prey_piercer_total_abundance + 
+           prey_scraper_total_abundance + 
+           prey_shredder_total_abundance)
 
 # taxonomic level biomass -------------------------------------------------
 
@@ -173,7 +156,7 @@ ibutton_data <- ibuttons %>%
             cv_mean = 100*(sd_mean/mean_mean)) %>%
   ungroup %>%
   gather(variable, observed, 3:11) %>%
-  replace_na(list(observed = "NA")) %>%
+  replace_na(list(observed = NA_real_)) %>%
   select(-site) %>%
   spread(variable, observed, fill = 0) %>%
   rename(max_temp = mean_max, min_temp = mean_min, mean_temp = mean_mean,
@@ -185,10 +168,7 @@ ibutton_data <- ibuttons %>%
 bromeliad_variables <- read_csv("Data/BWG_bromeliad_variables.csv")
 
 fulldata  <-  bromeliad_variables %>%
-  left_join(func_bio, by = "site_brom.id") %>%
-  left_join(func_abd, by = "site_brom.id") %>%
   left_join(trophic_bio, by = "site_brom.id") %>%
-  left_join(trophic_abd, by = "site_brom.id")%>%
   left_join(ord_bio, by = "site_brom.id")%>%
   left_join(subclass_bio, by = "site_brom.id")%>%
   left_join(family_bio, by = "site_brom.id")%>%
@@ -202,6 +182,6 @@ par(mfrow=c(2,2)); plot(maxvolmod) #+mean.diam+catchment.area excluded as not us
 summary(maxvolmod)#r2 is 30
 fulldata$maxvol[fulldata$site_brom.id=="colombia_29"]<-exp(predict(maxvolmod, data.frame(leaf.number= 33))) #predicted missing colombia_29 maxvol is 564
 
-# setwd("C:/Users/Diane/Dropbox/BWG Drought experiment/Paper 1_thresholds/Data")
+glimpse(fulldata)
 
-write_csv(fulldata, "Data/paper_1_data.csv")
+write_csv(fulldata, "Data/wide_functional_group_data.csv")
