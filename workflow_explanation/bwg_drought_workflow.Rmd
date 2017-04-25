@@ -1,0 +1,71 @@
+---
+title: "BWG_workflow"
+author: "andrew"
+date: "April 25, 2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+I would like to suggest a small change to our workflow for organizing the BWG Drought Experiment analyses. As you know, we have a shared Dropbox folder, which contains one folder for each paper. My suggestion is to create one specific "data folder", where all the data will be stored (but never edited). Data will be written to this folder by a single "master" script, then each paper can read from it. This has the advantage of concentrating a lot of detail in only one place. More details below:
+
+## The Old Way of doing things
+
+Our original plan for organizing this data was to create R scripts in each directory. This R script would be called `01_accessing_data.R` in all datasets. Our original plan was that each `01_accessing_data.R` script would create just the data that each paper required. The workflow could be visualized like this:
+
+```{r, out.width="400px", out.height="400px", dev='svg'}
+knitr::include_graphics("../workflow_explanation/old_way.svg")
+```
+
+The green arrows show the data being downloaded from our shared dropbox, merged with the latest trait information from the database, modified, calculated etc, and saved into the `Data/` subfolder in each `Paper` folder. 
+
+However, this process (which I think we originally thought would be straightforward) has become more complex! For example, the master data file for Diane's flagship `Paper_1_thresholds` does the following steps:
+
+* downloads all data
+* corrects a few spelling mistakes
+* downloads latest taxonomy and latest traits
+* merges these
+* calculates biomasses of functional groups and taxonomy
+* identifies leaky leaves (which bias calculations of hydrology)
+* calculates hydrology
+* summarizes ibuttons
+
+Because Diane's paper takes a broad, holistic view of the data, most other papers will require a subset of these data (perhaps with other information, such as more traits or the terrestrial taxa). However, the process has become so involved that I suggest it is a risk to do it more than once! If we find an error, or want to make a change or correction, everyone will have to edit their `01_accessing_data.R` scripts, multiplying the chances of error
+
+## the New Way
+
+I propose we follow a workflow that looks something like this: 
+
+```{r, out.width="400px", out.height="400px", dev='svg'}
+knitr::include_graphics("../workflow_explanation/new_way.svg")
+```
+
+In this model, all the downloading and cleaning of the data is done in one folder. This folder is called `00_BWGrainfall_data` and it's organization is very simple: just a few R scripts to access the data, and two folders: One for the `Data`, and another to hold this `workflow_explanation`:
+
+```{r}
+knitr::include_graphics("../workflow_explanation/folder_setup.png")
+```
+
+### Accessing data using relative paths
+
+What is the best way to access these data from another folder? One solution might be to copy it -- however this is _risky_: if the data should change (e.g. if we find and correct an error), then your copied data would be out of date. An easier solution is to use _relative paths_. We can use this shortcut because we all have the exact same configuration of files on our computers, thanks to the Magic of Dropbox! 
+A relative path points to where a file is on a computer _relative_ to the current working directory. In Rstudio, thea working directory is set automatically when you open an "Rstudio Project". Opening a project is a short two-step process:
+
+1. Open Rstudio
+2. go to `File > Open Project..` and find the Paper you want in your dropbox.  
+
+![gif](../workflow_explanation/project_demo.gif)
+
+Now that you have a project open, your working directory is set to this project directory. That means we can use a relative path from this directory to the data. We will read the data into R, and continue working in the project directory. 
+
+For example, if you have opened (for example) the `Paper_2_mechanisms`, you can read in the data with the following relative path:
+
+```r
+final_inverts <- read.csv("../00_BWGrainfall_data/Data/BWG_final_invertebrates.csv")
+```
+
+the two dots (`..`) means "the folder above". So we go from the `Paper_2_mechanisms` folder up into the `BWG Drought Experiment` folder, then back down into the `00_BWGrainfall_data` folder. Here is an example (you can also see this file in your own dropbox! under `BWG Drought Experiment/Paper_2_mechanisms/Rscripts/03_exploring.R`)
+
+![](../workflow_explanation/path_demo.gif)
+
+
