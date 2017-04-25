@@ -1,5 +1,7 @@
-
-# move this part back to paper 1
+# This scripts reads in the "raw" data that was downloaded in 01_accessing_data.
+# The primary goal of this script is to generate bromeliad-level summaries that 
+# can be combined with data on final insect communities.  We create summaries of
+# ibuttons, functional groups and taxonomic groups.
 
 
 # reading in data ---------------------------------------------------------
@@ -158,7 +160,7 @@ ibutton_data <- ibuttons %>%
   gather(variable, observed, 3:11) %>%
   replace_na(list(observed = NA_real_)) %>%
   select(-site) %>%
-  spread(variable, observed, fill = 0) %>%
+  spread(variable, observed, fill = NA_real_) %>%
   rename(max_temp = mean_max, min_temp = mean_min, mean_temp = mean_mean,
          sd_max_temp = sd_max, sd_min_temp = sd_min, sd_mean_temp = sd_mean,
          cv_max_temp = cv_max, cv_min_temp = cv_min, cv_mean_temp = cv_mean)
