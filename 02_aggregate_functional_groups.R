@@ -154,7 +154,7 @@ ibutton_data <- ibuttons %>%
             sd_min = sd(min.temp, na.rm = TRUE), sd_mean = sd(mean.temp, na.rm = TRUE),
             cv_max = 100*(sd_max/mean_max), cv_min = 100*(sd_min/mean_min),
             cv_mean = 100*(sd_mean/mean_mean)) %>%
-  ungroup %>%
+  ungroup %>% 
   gather(variable, observed, 3:11) %>%
   replace_na(list(observed = NA_real_)) %>%
   select(-site) %>%
@@ -162,6 +162,11 @@ ibutton_data <- ibuttons %>%
   rename(max_temp = mean_max, min_temp = mean_min, mean_temp = mean_mean,
          sd_max_temp = sd_max, sd_min_temp = sd_min, sd_mean_temp = sd_mean,
          cv_max_temp = cv_max, cv_min_temp = cv_min, cv_mean_temp = cv_mean)
+
+ibutton_data_cardoso_corrected <- ibutton_data %>% 
+  mutate(site_brom.id = str_replace(site_brom.id, " [A-Z]$", ""),
+         site_brom.id = str_replace(site_brom.id, "[A-Z]$", ""),
+         site_brom.id = str_replace_all(site_brom.id, " ", ""))
 
 # join everything together ------------------------------------------------
 
@@ -174,7 +179,7 @@ fulldata  <-  bromeliad_variables %>%
   left_join(family_bio, by = "site_brom.id")%>%
   left_join(subfamily_bio, by = "site_brom.id")%>%
   left_join(genus_bio, by = "site_brom.id")%>%
-  left_join(ibutton_data, by = "site_brom.id") #note ibutton data is 205 rows not 210
+  left_join(ibutton_data_cardoso_corrected, by = "site_brom.id") #note ibutton data is 205 rows not 210
 
 #predict a missing colombia maxvol measurement - also changed on rawdata
 maxvolmod<-lm(log(maxvol)~leaf.number, data=subset(fulldata,site=="colombia"))

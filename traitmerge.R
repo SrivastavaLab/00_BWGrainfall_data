@@ -1,5 +1,6 @@
 #' andrew macdonald
-#' notes on megin traits in to the dat
+#' Functions for merging traits into the BWG result database.
+#' copied over from the cesabfunctionalwebs project at the end of April 2017
 
 make_taxonomy_cols <- function(.trts_all_filtered) {
   trts_taxonomy_cols <- .trts_all_filtered %>%
