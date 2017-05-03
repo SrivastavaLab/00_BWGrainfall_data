@@ -208,8 +208,8 @@ meso_top_by_bromeliads <- final_inverts %>%
   summarize(total_biomass = sum(biomass)) %>% 
   ungroup %>% 
   spread(pred_cat, total_biomass, fill = 0) %>% 
-  rename(mesopredator_biomass = Meso, 
-         toppredator_biomass = Top)
+  rename(meso_predator_biomass = Meso, 
+         top_predator_biomass = Top)
 
 
 # join everything together ------------------------------------------------
@@ -226,8 +226,8 @@ fulldata  <-  bromeliad_variables %>%
   left_join(ibutton_data_cardoso_corrected, by = "site_brom.id") %>% #note ibutton data is 205 rows not 210
   # join on the "mesopredator" and "toppredator" biomasses
   left_join(meso_top_by_bromeliads) %>% 
-  replace_na(list(mesopredator_biomass = 0, 
-                  toppredator_biomass = 0))
+  replace_na(list(meso_predator_biomass = 0, 
+                  top_predator_biomass = 0))
 
 #predict a missing colombia maxvol measurement - also changed on rawdata
 maxvolmod<-lm(log(maxvol)~leaf.number, data=subset(fulldata,site=="colombia"))
