@@ -9,6 +9,7 @@
 library(bwgtools)
 library(assertr)
 library(tidyverse)
+library(stringr)
 
 #before you can merge the functional groups and summarize with them you have to 
 #get this info from the BWG, then also the traits. Read it in off a file, select
@@ -170,6 +171,47 @@ ibutton_data_cardoso_corrected <- ibutton_data %>%
          site_brom.id = str_replace(site_brom.id, "[A-Z]$", ""),
          site_brom.id = str_replace_all(site_brom.id, " ", ""))
 
+
+# Gustavo’s “Meso and Top” categorization ---------------------------------
+
+meso_top <- readxl::read_excel("Meso & Top.xlsx", range = "A1:C64")
+meso_top %>% tail
+
+final_inverts
+
+# need to combine meso_top with the final_inverts to generate Gustavo's biomass numbers.
+
+# match names
+meso_top_fixed <- meso_top %>% 
+  rename(site = Site,
+         species = BWGCode) %>% 
+  # fix site mispellings
+  mutate(site = tolower(site),
+         site = if_else(site == "french g", "frenchguiana", site),
+         site = if_else(site == "puerto r", "puertorico", site),
+         site = if_else(site == "costa rica", "costarica", site))
+
+unmatched_sites <- meso_top_fixed$site %>% unique %>% setdiff(final_inverts$site)
+
+if(length(unmatched_sites) != 0) stop("there are unmatch sites!")
+
+# should also be matches for species
+
+unmatched_spp <- meso_top_fixed$species %>% unique %>% setdiff(final_inverts$species %>% unique)
+if(length(unmatched_spp) != 0) stop("there are unmatched spp!")
+
+meso_top_by_bromeliads <- final_inverts %>% 
+  left_join(meso_top_fixed) %>% 
+  drop_na(`Predator category`) %>% 
+  select(site_brom.id, site, pred_cat = `Predator category`, biomass) %>% 
+  group_by(site_brom.id, site, pred_cat) %>% 
+  summarize(total_biomass = sum(biomass)) %>% 
+  ungroup %>% 
+  spread(pred_cat, total_biomass, fill = 0) %>% 
+  rename(mesopredator_biomass = Meso, 
+         toppredator_biomass = Top)
+
+
 # join everything together ------------------------------------------------
 
 bromeliad_variables <- read_csv("Data/BWG_bromeliad_variables.csv")
@@ -181,7 +223,11 @@ fulldata  <-  bromeliad_variables %>%
   left_join(family_bio, by = "site_brom.id")%>%
   left_join(subfamily_bio, by = "site_brom.id")%>%
   left_join(genus_bio, by = "site_brom.id")%>%
-  left_join(ibutton_data_cardoso_corrected, by = "site_brom.id") #note ibutton data is 205 rows not 210
+  left_join(ibutton_data_cardoso_corrected, by = "site_brom.id") %>% #note ibutton data is 205 rows not 210
+  # join on the "mesopredator" and "toppredator" biomasses
+  left_join(meso_top_by_bromeliads) %>% 
+  replace_na(list(mesopredator_biomass = 0, 
+                  toppredator_biomass = 0))
 
 #predict a missing colombia maxvol measurement - also changed on rawdata
 maxvolmod<-lm(log(maxvol)~leaf.number, data=subset(fulldata,site=="colombia"))
@@ -192,3 +238,4 @@ fulldata$maxvol[fulldata$site_brom.id=="colombia_29"]<-exp(predict(maxvolmod, da
 glimpse(fulldata)
 
 write_csv(fulldata, "Data/BWG_wide_functional_groups_ibuttons.csv")
+
