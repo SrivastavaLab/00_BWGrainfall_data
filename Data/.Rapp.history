@@ -1,0 +1,244 @@
+test1<-read.csv("Data/paper_5_data.csv")
+test1<-read.csv("Data/paper_5_data.csv", h=T)
+test1<-read.csv("Data/paper_5_data.csv")
+round(test1$pdmr, 3) == round(test1$pred_mass/test1$prey_mass, 3)
+rm(list=ls(all=TRUE))
+paper5<-read.csv("Data/paper_5_data.csv")
+rm(list=ls(all=TRUE))
+paper5<-read.csv("paper_5_data.csv")
+test1<-read.csv("paper_5_data.csv", h=T)
+library(bwgtools)
+library(dplyr)#
+library(tidyr)#
+library(stringr)#
+library(readr)#
+# obtain data -----------------------------------------#
+# site.info#
+site_info <- combine_tab(sheetname = "site.info")#
+# bromeliad.physical#
+bromeliad_physical <- combine_tab(sheetname = "bromeliad.physical")#
+# leaf.waterdepths#
+leaf_waterdepths <- combine_tab(sheetname = "leaf.waterdepths")#
+# bromeliad.ibuttons#
+# COMING SOON #
+# bromeliad.final.inverts#
+final_inverts <- combine_tab(sheetname = "bromeliad.final.inverts")#
+### trait data#
+bwg_names <- get_bwg_names()#
+# transform data --------------------------------------#
+# pred_prey#
+# func.group#
+### merge with functional groups#
+invert_traits <- merge_func(insect_data = final_inverts, bwg_names)#
+#summarize functional groups#
+func_groups <- sum_func_groups(invert_traits,#
+                               grps = list(~site, ~site_brom.id,#
+                                           ~predation, ~functional_group))#
+func_bio <- func_groups %>%#
+  group_by(site) %>% #
+  filter(!all(is.na(total_biomass))) %>%#
+  ungroup %>% #
+  select(site_brom.id, functional_group, total_biomass) %>% #
+  filter(!is.na(functional_group)) %>% #
+  mutate(func.group = paste0(functional_group, "_bio")) %>% #
+  spread(func.group, total_biomass, fill = 0)#
+# water#
+hydro <- hydro_variables(leaf_waterdepths, site_info, bromeliad_physical)#
+### summarrizing leaf variables#
+brom_hydro <- hydro %>% #
+  select(1:10) %>% #
+  ungroup %>% #
+  select(-leaf, -len.depth, -n.depth, -trt.name, -site) %>% #
+  group_by(site_brom.id) %>% #
+  summarise_each(funs(mean))#
+##inside stuff, don't run#
+## create a df to work, converting the event into a binary vector, describing whether the last event was a driedout#
+## day or a overflow day#
+decisions <- hydro %>% #
+  mutate(dried = as.numeric(ifelse(event == "driedout", 1, 0))) %>% #
+  ungroup %>% #
+  select(-leaf, -len.depth, -n.depth, -event, -site, -trt.name)#
+## first, let me calculate the average value for the main hydrological variables#
+mean_hydro <- decisions %>% #
+  select(-prior, -n_driedout, -n_overflow, -dried) %>% #
+  group_by(site_brom.id) %>% #
+  summarise_each(funs(mean(., na.rm = TRUE)))#
+## second, calculate the average number of n_driedout and n_overflow#
+## why didn't I do that above? Because if I used summarise_each as it is there, it would return some NaN#
+## like, for instance, in argentina_15...to fix that, I would have to do a lot of coding, which could be#
+## anoying...so I decided to do this way to save me time#
+event_number <- decisions %>% #
+  select(site_brom.id, n_driedout, n_overflow) %>% #
+  group_by(site_brom.id) %>% #
+  summarise_each(funs(mean))#
+## when and which was the last, most recent, catastrophe #
+event_type <- decisions %>% #
+  select(site_brom.id, prior, dried) %>% #
+  group_by(site_brom.id) %>% #
+  filter(prior == min(prior)) %>% #
+  distinct() %>% #
+  rename(days_last_catastrophe = prior) %>% #
+  mutate(type_catastrophe = ifelse(dried == 1, "driedout", "overflow")) %>% #
+  select(-dried)#
+## new hydro#
+brom_hydro <- mean_hydro %>% #
+  left_join(event_number) %>% #
+  left_join(event_type)#
+## summarize hydro:#
+#brom_hydro <- hydro %>% #
+#  ungroup %>% #
+#  select(-leaf, -len.depth, -n.depth) %>% #
+#  group_by(site, trt.name) %>% #
+#  summarise_each(funs(mean))#
+#View(brom_hydro)#
+# decomp -- for the time being,works weirdly (ie redownloads data)#
+decomposition <- get_decomp(bromeliad_physical = bromeliad_physical)#
+# rainfall#
+# ibutton metrics#
+trophic_abd <- func_groups %>%#
+  ungroup %>% #
+  select(site_brom.id, predation, total_abundance) %>% #
+  filter(!is.na(predation)) %>% #
+  group_by(site_brom.id, predation) %>% #
+  summarise_each(funs(sum)) %>% #
+  spread(predation, total_abundance, fill = 0) %>% #
+  mutate(pdar = predator/prey) %>% #
+  rename(pred_abd = predator, prey_abd = prey)#
+trophic_bio <- func_groups %>%#
+  group_by(site) %>% #
+  filter(!all(is.na(total_biomass))) %>%#
+  ungroup %>% #
+  select(site_brom.id, predation, total_biomass) %>% #
+  filter(!is.na(predation)) %>% #
+  group_by(site_brom.id, predation) %>% #
+  summarise_each(funs(sum)) %>% #
+  spread(predation, total_biomass, fill = 0)%>% #
+  mutate(pdmr = predator/prey) %>% #
+  rename(pred_mass = predator, prey_mass = prey)
+sum_taxa_groups<-function (merged_data, grps = list(~site, ~site_brom.id, ~ord, #
+                                                    ~family, ~subfamily)) #
+{#
+  merged_data %>% dplyr::group_by_(.dots = grps) %>% dplyr::summarize(total_abundance = sum(abundance), #
+                                                                      total_biomass = sum(biomass), total_taxa = n())#
+}#
+ord_groups <- sum_taxa_groups(invert_traits,#
+                              grps = list(~site, ~site_brom.id, ~ord, #
+                                          ~family, ~subfamily))#
+ord_bio <- ord_groups %>%#
+  group_by(site) %>% #
+  filter(!all(is.na(total_biomass))) %>%#
+  ungroup %>% #
+  select(site_brom.id, ord, total_biomass) %>% #
+  filter(!is.na(ord)) %>% #
+  mutate(ord = paste0(ord, "_bio")) %>% #
+  group_by(site_brom.id, ord) %>%#
+  summarize(total_biomass = sum(total_biomass)) %>%#
+  spread(ord, total_biomass, fill = 0)#
+family_bio <- ord_groups %>%#
+  group_by(site) %>% #
+  filter(!all(is.na(total_biomass))) %>%#
+  ungroup %>% #
+  select(site_brom.id, family, total_biomass) %>% #
+  filter(!is.na(family)) %>% #
+  mutate(family = paste0(family, "_bio")) %>% #
+  group_by(site_brom.id, family) %>%#
+  summarize(total_biomass = sum(total_biomass)) %>%#
+  spread(family, total_biomass, fill = 0)#
+subfamily_bio <- ord_groups %>%#
+  group_by(site) %>% #
+  #filter(!all(is.na(total_biomass))) %>%#
+  #ungroup %>% #
+  select(site_brom.id, subfamily, total_biomass) %>% #
+  #filter(!is.na(subfamily)) %>% #
+  mutate(subfamily = paste0(subfamily, "_bio")) %>% #
+  group_by(site_brom.id, subfamily) %>%#
+  summarize(total_biomass = sum(total_biomass)) %>%#
+  spread(subfamily, total_biomass, fill = 0)
+## merge all the bromeliad-level variables#
+## start with bromeliad.physical because it must be complete!#
+fulldata <- bromeliad_physical %>% #
+  left_join(decomposition) %>% #
+  left_join(trophic_bio) %>% #
+  left_join(trophic_abd) %>% #
+  left_join(brom_hydro)%>%#
+  left_join(ord_bio) %>% #
+  left_join(family_bio)#
+fulldata <- fulldata %>%#
+  left_join(subfamily_bio, by = c("site_brom.id"="site_brom.id"))#
+## merge all the bromeliad-level variables#
+#and now some total predator, total prey biomass variables#
+fulldata$predator_bio<-fulldata$engulfer_bio+fulldata$piercer_bio#
+fulldata$detritivore_bio<-fulldata$scraper_bio+fulldata$gatherer_bio+fulldata$shredder_bio#
+fulldata$PDratio<-fulldata$predator_bio/fulldata$detritivore_bio
+fulldata$engulfer_bio
+fulldata <- bromeliad_physical %>% #
+  left_join(decomposition) %>% #
+  left_join(trophic_bio) %>% #
+  left_join(trophic_abd) %>% #
+  left_join(brom_hydro)%>%#
+  left_join(func_bio) %>% #
+  left_join(ord_bio) %>% #
+  left_join(family_bio)
+fulldata <- fulldata %>%#
+  left_join(subfamily_bio, by = c("site_brom.id"="site_brom.id"))
+fulldata$predator_bio<-fulldata$engulfer_bio+fulldata$piercer_bio
+fulldata$detritivore_bio<-fulldata$scraper_bio+fulldata$gatherer_bio+fulldata$shredder_bio
+fulldata$PDratio<-fulldata$predator_bio/fulldata$detritivore_bio
+view(fulldata)
+View(fulldata)
+glimpse(fulldata)
+rm(list=ls(all=TRUE))
+library(tidyverse)
+install.packages("tidyverse")
+/Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/
+Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/
+getwd(/Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/)
+setwd()
+getwd()
+setwd(Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data)
+set(dir)
+setwd(dir)
+setwd(/Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/)
+setwd(Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/)
+setwd(Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data)
+Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data
+setwd("/Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/")
+setwd(c:"/Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/")
+setwd(dropbox:"/Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/")
+setwd(Dropbox:"/Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/")
+setwd(D:"/Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/")
+setwd(a:"/Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/")
+setwd(b:"/Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/")
+setwd(e:"/Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/")
+setwd(F:"/Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/")
+setwd(A:"/Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/")
+setwd("/Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/")
+rm(list=ls(all=TRUE))
+library(tidyverse)
+fulldata <- read_csv("../00_BWGrainfall_data/Data/BWG_wide_functional_groups_ibuttons.csv")
+setwd("/Dropbox/BWG Drought Experiment/00_BWGrainfall_data/Data/")
+?rstudioapi
+??rstudioapi
+rm(list=ls(all=TRUE))
+library(tidyverse)
+setwd("/Users/gromero/Dropbox/GUSTAVO.28-8-14/TUDO-MAIS ATUAIS/PROJETOS-PARCERIAS RECENTES/Canadá/BWG Drought Experiment/00_BWGrainfall_data/Data/")
+fulldata <- read.csv("BWG_wide_functional_groups_ibuttons.csv")
+this is the final data needed for paper 5#
+final_data <- fulldata %>% #
+  select(site_brom.id:catchment.area,#
+         turbidity.final:chlorophyll.final, water.volume.final, fpom.final, mean.depth:last_wet,#
+         predator_engulfer_total_abundance:prey_abundance, Odonata_bio , cv_max_temp:sd_min_temp,#
+         meso_predator_biomass, top_predator_biomass) %>% #
+  mutate(meso_predator_biomass = predator_piercer_total_biomass,#
+         meso_predator_abundance = predator_piercer_total_abundance,#
+         top_predator_biomass = predator_engulfer_total_biomass,#
+         top_predator_abundance = predator_engulfer_total_abundance,#
+         prey_biomass_corrected = prey_piercer_total_biomass + prey_scraper_total_biomass + prey_gatherer_total_biomass +#
+           prey_shredder_total_biomass + prey_filter.feeder_total_biomass,#
+         prey_abundance_corrected = prey_piercer_total_abundance + prey_scraper_total_abundance + prey_gatherer_total_abundance +#
+           prey_shredder_total_abundance + prey_filter.feeder_total_abundance,#
+         top.pred_prey_ratio = top_predator_biomass/prey_biomass_corrected,#
+         top.pred_meso.pred_ratio = top_predator_biomass/meso_predator_biomass,#
+         meso.pred_prey_ratio = meso_predator_biomass/prey_biomass_corrected)#
+final_data
+write_csv(x = final_data, path = "Data_paper5", col_names = TRUE)
