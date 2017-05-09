@@ -179,6 +179,7 @@ meso_top %>% tail
 
 final_inverts
 
+
 # need to combine meso_top with the final_inverts to generate Gustavo's biomass numbers.
 
 # match names
@@ -201,7 +202,7 @@ unmatched_spp <- meso_top_fixed$species %>% unique %>% setdiff(final_inverts$spe
 if(length(unmatched_spp) != 0) stop("there are unmatched spp!")
 
 meso_top_by_bromeliads <- final_inverts %>% 
-  left_join(meso_top_fixed) %>% 
+  left_join(meso_top_fixed, by = c("site", "species")) %>% 
   drop_na(`Predator category`) %>% 
   select(site_brom.id, site, pred_cat = `Predator category`, biomass) %>% 
   group_by(site_brom.id, site, pred_cat) %>% 
