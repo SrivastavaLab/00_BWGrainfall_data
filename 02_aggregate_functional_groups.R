@@ -238,5 +238,23 @@ fulldata$maxvol[fulldata$site_brom.id=="colombia_29"]<-exp(predict(maxvolmod, da
 
 glimpse(fulldata)
 
+
+# writing out data --------------------------------------------------------
+
+
+
 write_csv(fulldata, "Data/BWG_wide_functional_groups_ibuttons.csv")
 
+# take the long-format functional group data (abudance and biomass) and add ibuttons
+# Start with the data that contains everything: all traits and all functional groups
+invert_traits %>% 
+  # summarize by grouping and summing over functional and taxonomic groups. throw in order for good measure
+  sum_func_groups( grps = list(~site, 
+                               ~site_brom.id,
+                               ~predation,
+                               ~functional_group, 
+                               ~ord,
+                               ~family)) %>% 
+  # finally add in the temperature data
+  left_join(ibutton_data_cardoso_corrected %>% select(site_brom.id, mean_temp, sd_mean_temp)) %>% 
+  write_csv("Data/BWG_long_functional_groups_temp.csv")
