@@ -242,8 +242,18 @@ glimpse(fulldata)
 # writing out data --------------------------------------------------------
 
 
+# remove taxonomic groups under subfamily, remove variables ending _taxa or
+# _abundance, and remove meso_predator_biomass and top_predator_biomass. We
+# could save this csv as a different name, and I can just adjust my code in
+# 01_datasets_for_paper1 to read in new name.
 
-write_csv(fulldata, "Data/BWG_wide_functional_groups_ibuttons.csv")
+fulldata %>% 
+  select(-(Aelosoma_bio:Wyeomyia_bio), 
+         # no 'abundance' in paper 1 
+         -contains("abundance"),
+         - meso_predator_biomass, 
+         - top_predator_biomass) %>% 
+  write_csv("Data/BWG_wide_functional_groups_ibuttons.csv")
 
 # take the long-format functional group data (abudance and biomass) and add ibuttons
 # Start with the data that contains everything: all traits and all functional groups
