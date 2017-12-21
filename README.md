@@ -1,4 +1,8 @@
-## Purpose of this folder
+
+[![DOI](https://zenodo.org/badge/87413613.svg)](https://zenodo.org/badge/latestdoi/87413613)
+
+
+## Data from the Bromeliad Working Group rainfall experiment
 
 To supply a single place in which we can organize all the data for the drought experiment. The hope is to concentrate all the effort here, to make everything both easier and less error-prone.
 
