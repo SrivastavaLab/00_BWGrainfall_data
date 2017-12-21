@@ -3,6 +3,9 @@
 # can be combined with data on final insect communities.  We create summaries of
 # ibuttons, functional groups and taxonomic groups.
 
+## Some data will be held out for now. These data will appear in later versions
+## of this same database. Lines were data is held out are marked with **HELD OUT**
+
 
 # reading in data ---------------------------------------------------------
 
@@ -267,4 +270,10 @@ invert_traits %>%
                                ~family)) %>% 
   # finally add in the temperature data
   left_join(ibutton_data_cardoso_corrected %>% select(site_brom.id, mean_temp, sd_mean_temp)) %>% 
+  # **HELD OUT**
+  # filter out data that will appear in later paper
+  # "total abundance" "total taxa" (perhaps
+  # "predation"),
+  select(-total_abundance, -total_taxa, -predation) %>% 
   write_csv("Data/BWG_long_functional_groups_temp.csv")
+
